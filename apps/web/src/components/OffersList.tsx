@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Offer } from '@/lib/types';
-import { fetchOffers } from '@/lib/api';
+import { Offer, ExchangeRate } from '@/lib/types';
+import { fetchOffers, fetchRates } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { OfferCard } from './OfferCard';
 import { OffersFilters } from './OffersFilters';
@@ -24,16 +24,22 @@ export function OffersList() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationDenied, setLocationDenied] = useState(false);
   const [contacting, setContacting] = useState<string | null>(null);
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [ratesMap, setRatesMap] = useState<Record<string, ExchangeRate>>({});
 
   const loadOffers = useCallback(async () => {
     setLoading(true);
-    const data = await fetchOffers({
-      ...(userLocation ?? {}),
-      radiusKm: 20,
-      currency: currency || undefined,
-      type: type || undefined,
-    });
+    const [data, rates] = await Promise.all([
+      fetchOffers({
+        ...(userLocation ?? {}),
+        radiusKm: 20,
+        currency: currency || undefined,
+        type: type || undefined,
+      }),
+      fetchRates(),
+    ]);
     setOffers(data);
+    setRatesMap(Object.fromEntries((rates as ExchangeRate[]).map((r) => [r.currency, r])));
     setLoading(false);
   }, [currency, type, userLocation]);
 
@@ -57,6 +63,7 @@ export function OffersList() {
       router.push('/login');
       return;
     }
+    setContactError(null);
     setContacting(offerId);
     try {
       const res = await fetch(`${API}/transactions`, {
@@ -69,13 +76,13 @@ export function OffersList() {
       });
       if (!res.ok) {
         const err = await res.json() as { message?: string };
-        alert(err.message ?? 'שגיאה ביצירת שיחה');
+        setContactError(err.message ?? 'שגיאה ביצירת שיחה');
         return;
       }
       const tx = await res.json() as { id: string };
       router.push(`/chat/${tx.id}`);
     } catch {
-      alert('שגיאה בחיבור לשרת');
+      setContactError('שגיאה בחיבור לשרת');
     } finally {
       setContacting(null);
     }
@@ -100,6 +107,13 @@ export function OffersList() {
         )}
       </div>
 
+      {contactError && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center justify-between">
+          <span>{contactError}</span>
+          <button onClick={() => setContactError(null)} className="text-red-400 hover:text-red-600 ml-3">✕</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -114,14 +128,21 @@ export function OffersList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {offers.map((offer) => (
-            <OfferCard
-              key={offer.id}
-              offer={offer}
-              onContact={() => handleContact(offer.id)}
-              contacting={contacting === offer.id}
-            />
-          ))}
+          {offers.map((offer) => {
+            const rate = ratesMap[offer.currency];
+            const ilsAmount = rate
+              ? Math.round(parseFloat(offer.amount) * (rate.rate / rate.unit))
+              : undefined;
+            return (
+              <OfferCard
+                key={offer.id}
+                offer={offer}
+                ilsAmount={ilsAmount}
+                onContact={() => handleContact(offer.id)}
+                contacting={contacting === offer.id}
+              />
+            );
+          })}
         </div>
       )}
     </div>

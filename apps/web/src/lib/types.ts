@@ -19,6 +19,7 @@ export interface Offer {
   createdAt: string;
   userFirstName: string;
   userLastInitial: string;
+  userPhone?: string;
   userRatingAvg: string;
   userRatingCount: number;
   userIsVerified: boolean;

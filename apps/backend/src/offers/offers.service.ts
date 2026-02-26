@@ -57,6 +57,7 @@ export class OffersService {
         o.created_at AS "createdAt",
         u.first_name AS "userFirstName",
         LEFT(u.last_name, 1) AS "userLastInitial",
+        u.phone AS "userPhone",
         u.rating_avg AS "userRatingAvg",
         u.rating_count AS "userRatingCount",
         u.is_verified AS "userIsVerified",
