@@ -80,7 +80,7 @@ export default function NewOfferPage() {
         const err = await res.json();
         throw new Error(err.message ?? 'שגיאה ביצירת הצעה');
       }
-      router.push('/dashboard');
+      router.push('/profile');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה');
     } finally {
@@ -231,7 +231,7 @@ export default function NewOfferPage() {
                 {submitting ? 'מפרסם...' : 'פרסם הצעה'}
               </button>
               <Link
-                href="/dashboard"
+                href="/profile"
                 className="px-6 py-3 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm font-medium"
               >
                 ביטול

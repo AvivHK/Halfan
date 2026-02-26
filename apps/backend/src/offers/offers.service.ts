@@ -4,6 +4,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Offer, OfferStatus } from './offer.entity';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { FindOffersDto } from './dto/find-offers.dto';
+import { UpdateOfferDto } from './dto/update-offer.dto';
 
 @Injectable()
 export class OffersService {
@@ -139,5 +140,35 @@ export class OffersService {
     if (offer.userId !== userId) throw new ForbiddenException();
     if (offer.status !== OfferStatus.PAUSED) throw new BadRequestException('ניתן להפעיל מחדש רק הצעות מוקפאות');
     await this.offerRepo.update(offerId, { status: OfferStatus.ACTIVE });
+  }
+
+  async update(offerId: string, userId: string, dto: UpdateOfferDto): Promise<void> {
+    const offer = await this.offerRepo.findOne({ where: { id: offerId } });
+    if (!offer) throw new NotFoundException('Offer not found');
+    if (offer.userId !== userId) throw new ForbiddenException();
+    if (offer.status === OfferStatus.CANCELLED || offer.status === OfferStatus.COMPLETED) {
+      throw new BadRequestException('לא ניתן לערוך הצעה שהושלמה או בוטלה');
+    }
+
+    const updates: Partial<Offer> = {};
+    if (dto.amount !== undefined) updates.amount = dto.amount;
+    if (dto.meetingZone !== undefined) updates.meetingZone = dto.meetingZone;
+    if (dto.availabilityNote !== undefined) updates.availabilityNote = dto.availabilityNote;
+    if (dto.expiresInHours !== undefined) {
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + dto.expiresInHours);
+      updates.expiresAt = expiresAt;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.offerRepo.update(offerId, updates);
+    }
+
+    if (dto.lat !== undefined && dto.lng !== undefined) {
+      await this.dataSource.query(
+        `UPDATE offers SET location = ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography WHERE id = $3`,
+        [dto.lng, dto.lat, offerId],
+      );
+    }
   }
 }

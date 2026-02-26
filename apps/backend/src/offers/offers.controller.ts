@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Query, Param, UseGuards, Request } from '@nestjs/common';
 import { OffersService } from './offers.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
+import { UpdateOfferDto } from './dto/update-offer.dto';
 import { FindOffersDto } from './dto/find-offers.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
@@ -44,5 +45,11 @@ export class OffersController {
   @UseGuards(JwtAuthGuard)
   resume(@Param('id') id: string, @Request() req: { user: User }) {
     return this.offersService.resume(id, req.user.id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(@Param('id') id: string, @Request() req: { user: User }, @Body() dto: UpdateOfferDto) {
+    return this.offersService.update(id, req.user.id, dto);
   }
 }
