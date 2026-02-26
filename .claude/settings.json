@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "Bash(lsof -ti :3001)"
+    ],
+    "additionalDirectories": [
+      "/Users/avivhk/aviv/NewProject/apps/web/src/app/chat"
+    ]
+  }
+}
