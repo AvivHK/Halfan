@@ -24,7 +24,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [offers, setOffers] = useState<MyOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(true);
-  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [acting, setActing] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -47,19 +47,25 @@ export default function DashboardPage() {
     loadOffers();
   }, [loadOffers]);
 
-  const cancelOffer = async (id: string) => {
-    if (!confirm('לבטל את ההצעה?')) return;
-    setCancelling(id);
-    await fetch(`${API}/offers/${id}`, {
-      method: 'DELETE',
+  const doAction = async (id: string, method: string, path: string) => {
+    setActing(id);
+    await fetch(`${API}/offers/${id}${path}`, {
+      method,
       headers: { Authorization: `Bearer ${token!}` },
     });
-    setCancelling(null);
+    setActing(null);
     loadOffers();
   };
 
-  const activeOffers = offers.filter((o) => o.status === 'ACTIVE');
-  const pastOffers = offers.filter((o) => o.status !== 'ACTIVE');
+  const markSold = (id: string) => {
+    if (!confirm('לסמן את ההצעה כנמכרה?')) return;
+    doAction(id, 'DELETE', '');
+  };
+  const pauseOffer = (id: string) => doAction(id, 'PATCH', '/pause');
+  const resumeOffer = (id: string) => doAction(id, 'PATCH', '/resume');
+
+  const activeOffers = offers.filter((o) => o.status === 'ACTIVE' || o.status === 'PAUSED');
+  const pastOffers = offers.filter((o) => o.status !== 'ACTIVE' && o.status !== 'PAUSED');
 
   if (authLoading || !user) return null;
 
@@ -112,7 +118,7 @@ export default function DashboardPage() {
         {/* Active offers */}
         <div className="mb-8">
           <h2 className="text-lg font-bold text-gray-800 mb-4">
-            הצעות פעילות ({activeOffers.length})
+            הצעות ({activeOffers.length})
           </h2>
           {loadingOffers ? (
             <div className="space-y-3">
@@ -136,8 +142,10 @@ export default function DashboardPage() {
                 <OfferRow
                   key={offer.id}
                   offer={offer}
-                  onCancel={cancelOffer}
-                  cancelling={cancelling === offer.id}
+                  onSold={markSold}
+                  onPause={pauseOffer}
+                  onResume={resumeOffer}
+                  acting={acting === offer.id}
                 />
               ))}
             </div>
@@ -150,7 +158,7 @@ export default function DashboardPage() {
             <h2 className="text-lg font-bold text-gray-800 mb-4">הצעות קודמות</h2>
             <div className="space-y-3">
               {pastOffers.map((offer) => (
-                <OfferRow key={offer.id} offer={offer} cancelling={false} />
+                <OfferRow key={offer.id} offer={offer} acting={false} />
               ))}
             </div>
           </div>
@@ -162,12 +170,16 @@ export default function DashboardPage() {
 
 function OfferRow({
   offer,
-  onCancel,
-  cancelling,
+  onSold,
+  onPause,
+  onResume,
+  acting,
 }: {
   offer: MyOffer;
-  onCancel?: (id: string) => void;
-  cancelling: boolean;
+  onSold?: (id: string) => void;
+  onPause?: (id: string) => void;
+  onResume?: (id: string) => void;
+  acting: boolean;
 }) {
   const isBuy = offer.type === 'BUY';
   const amount = parseFloat(offer.amount).toLocaleString('he-IL');
@@ -175,9 +187,10 @@ function OfferRow({
 
   const statusLabel: Record<string, { label: string; color: string }> = {
     ACTIVE: { label: 'פעיל', color: 'bg-green-100 text-green-700' },
+    PAUSED: { label: 'מוקפא', color: 'bg-yellow-100 text-yellow-700' },
     MATCHED: { label: 'בתהליך', color: 'bg-blue-100 text-blue-700' },
     COMPLETED: { label: 'הושלם', color: 'bg-gray-100 text-gray-600' },
-    CANCELLED: { label: 'בוטל', color: 'bg-red-100 text-red-600' },
+    CANCELLED: { label: 'נמכר', color: 'bg-red-100 text-red-600' },
   };
   const s = statusLabel[offer.status] ?? { label: offer.status, color: 'bg-gray-100 text-gray-600' };
 
@@ -205,15 +218,35 @@ function OfferRow({
         </p>
       </div>
 
-      {onCancel && offer.status === 'ACTIVE' && (
-        <button
-          onClick={() => onCancel(offer.id)}
-          disabled={cancelling}
-          className="text-xs text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-100 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-        >
-          {cancelling ? '...' : 'בטל'}
-        </button>
-      )}
+      <div className="flex gap-2">
+        {offer.status === 'ACTIVE' && onPause && (
+          <button
+            onClick={() => onPause(offer.id)}
+            disabled={acting}
+            className="text-xs text-yellow-600 hover:text-yellow-800 px-3 py-1.5 border border-yellow-200 rounded-lg hover:bg-yellow-50 transition-colors disabled:opacity-50"
+          >
+            {acting ? '...' : '❄️ הקפא'}
+          </button>
+        )}
+        {offer.status === 'PAUSED' && onResume && (
+          <button
+            onClick={() => onResume(offer.id)}
+            disabled={acting}
+            className="text-xs text-green-600 hover:text-green-800 px-3 py-1.5 border border-green-200 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-50"
+          >
+            {acting ? '...' : '▶️ הפעל'}
+          </button>
+        )}
+        {(offer.status === 'ACTIVE' || offer.status === 'PAUSED') && onSold && (
+          <button
+            onClick={() => onSold(offer.id)}
+            disabled={acting}
+            className="text-xs text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-100 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+          >
+            {acting ? '...' : '✓ נמכר'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

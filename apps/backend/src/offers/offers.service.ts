@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Offer, OfferStatus } from './offer.entity';
@@ -41,7 +41,7 @@ export class OffersService {
     return this.offerRepo.findOneOrFail({ where: { id: saved.id }, relations: ['user'] });
   }
 
-  async findAll(dto: FindOffersDto): Promise<object[]> {
+  async findAll(dto: FindOffersDto, isAuthenticated = false): Promise<object[]> {
     let query = `
       SELECT
         o.id,
@@ -57,7 +57,7 @@ export class OffersService {
         o.created_at AS "createdAt",
         u.first_name AS "userFirstName",
         LEFT(u.last_name, 1) AS "userLastInitial",
-        u.phone AS "userPhone",
+        ${isAuthenticated ? 'u.phone AS "userPhone",' : ''}
         u.rating_avg AS "userRatingAvg",
         u.rating_count AS "userRatingCount",
         u.is_verified AS "userIsVerified",
@@ -123,5 +123,21 @@ export class OffersService {
     if (!offer) throw new NotFoundException('Offer not found');
     if (offer.userId !== userId) throw new ForbiddenException();
     await this.offerRepo.update(offerId, { status: OfferStatus.CANCELLED });
+  }
+
+  async pause(offerId: string, userId: string): Promise<void> {
+    const offer = await this.offerRepo.findOne({ where: { id: offerId } });
+    if (!offer) throw new NotFoundException('Offer not found');
+    if (offer.userId !== userId) throw new ForbiddenException();
+    if (offer.status !== OfferStatus.ACTIVE) throw new BadRequestException('ניתן להקפיא רק הצעות פעילות');
+    await this.offerRepo.update(offerId, { status: OfferStatus.PAUSED });
+  }
+
+  async resume(offerId: string, userId: string): Promise<void> {
+    const offer = await this.offerRepo.findOne({ where: { id: offerId } });
+    if (!offer) throw new NotFoundException('Offer not found');
+    if (offer.userId !== userId) throw new ForbiddenException();
+    if (offer.status !== OfferStatus.PAUSED) throw new BadRequestException('ניתן להפעיל מחדש רק הצעות מוקפאות');
+    await this.offerRepo.update(offerId, { status: OfferStatus.ACTIVE });
   }
 }

@@ -16,6 +16,7 @@ export enum OfferType {
 
 export enum OfferStatus {
   ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
   MATCHED = 'MATCHED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',

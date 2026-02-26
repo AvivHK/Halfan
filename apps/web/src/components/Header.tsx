@@ -24,7 +24,7 @@ export function Header() {
                   + פרסם הצעה
                 </Link>
                 <Link
-                  href="/dashboard"
+                  href="/profile"
                   className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                 >
                   {user.firstName} {user.lastName.charAt(0)}.

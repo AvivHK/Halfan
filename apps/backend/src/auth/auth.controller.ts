@@ -29,7 +29,8 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@Request() req: { user: User }) {
-    return req.user;
+    const { passwordHash, ...safe } = req.user as User & { passwordHash?: string };
+    return { ...safe, hasPassword: !!passwordHash };
   }
 
   @Get('google')

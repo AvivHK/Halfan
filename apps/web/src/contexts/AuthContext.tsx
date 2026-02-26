@@ -9,6 +9,8 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   phone?: string;
+  googleId?: string;
+  isGoogleOnly?: boolean;
   isVerified: boolean;
   isAgency: boolean;
   ratingAvg: string;
@@ -22,6 +24,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 interface RegisterData {
@@ -56,7 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setUser(data);
+        // isGoogleOnly = has googleId but no passwordHash (passwordHash not returned, infer from googleId + no password set)
+        setUser({ ...data, isGoogleOnly: !!data.googleId && !data.hasPassword });
       } else {
         localStorage.removeItem('forex_token');
         setToken(null);
@@ -65,6 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /* noop */
     }
   };
+
+  const refreshUser = useCallback(async () => {
+    const stored = localStorage.getItem('forex_token');
+    if (stored) await fetchMe(stored);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await fetch(`${API}/auth/login`, {
@@ -105,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
