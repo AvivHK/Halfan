@@ -41,6 +41,7 @@ export class RatesService {
     this.redis = new Redis({
       host: config.get('REDIS_HOST', 'localhost'),
       port: config.get<number>('REDIS_PORT', 6381),
+      password: config.get('REDIS_PASSWORD'),
     });
   }
 
