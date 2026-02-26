@@ -6,8 +6,6 @@ import { RatingBadge } from './RatingBadge';
 interface Props {
   offer: Offer;
   ilsAmount?: number;
-  onContact?: () => void;
-  contacting?: boolean;
 }
 
 function toWhatsAppNumber(phone: string): string {

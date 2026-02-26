@@ -13,6 +13,7 @@ export async function fetchOffers(params: {
   radiusKm?: number;
   currency?: string;
   type?: string;
+  token?: string;
 }) {
   const qs = new URLSearchParams();
   if (params.lat !== undefined) qs.set('lat', String(params.lat));
@@ -21,7 +22,10 @@ export async function fetchOffers(params: {
   if (params.currency) qs.set('currency', params.currency);
   if (params.type) qs.set('type', params.type);
 
-  const res = await fetch(`${API}/offers?${qs}`, { cache: 'no-store' });
+  const headers: HeadersInit = {};
+  if (params.token) headers['Authorization'] = `Bearer ${params.token}`;
+
+  const res = await fetch(`${API}/offers?${qs}`, { cache: 'no-store', headers });
   if (!res.ok) return [];
   return res.json();
 }
